@@ -71,3 +71,15 @@
 - Bash tool gotcha on this machine: long multi-line heredocs in one Bash call can fail to parse — write files with the file-writing tool instead.
 
 - `core.autocrlf=true` on this machine: working-tree files may have CRLF while git stores LF. Byte-for-byte checks compare with line endings normalised to LF.
+
+## Built by tickets
+
+### T01 (core)
+- `cli.main(argv=None) -> int`; prints `engine: <name>` itself (T02 adds the scribe upload note).
+- `engines.select(name)`: explicit `-e`/`VIDSCRIBE_ENGINE` is not checked for availability; auto-choice uses `get(name).available()` and treats an ImportError as unavailable.
+- `mlx.DEFAULT_MODEL`, `mlx.available()`, `mlx.command(interp, wav, out_base, fmt, dur, opts, ram_bytes)`, `mlx.transcribe(...)`.
+- Tests: `tests/test_cli.py`, `test_engines.py`, `test_media.py`, `test_mlx.py`, `test_subs.py` (38 tests).
+- T01: for scribe, `cli` prints `engine: scribe (audio is uploaded to ElevenLabs)` itself — T02 does not touch cli.py.
+- T03: `install.ps1 [-Local]`, `install.sh` (no args); both end with `uv tool install --force --python 3.12 <repo>[extras]` and replace `~/.claude/skills/vidscribe` with `skill/`.
+- T02: `scribe.request` sends via `build_opener(_NoRedirect)` (test seam: `urllib.request.OpenerDirector.open`); `_check_key` rejects keys outside [!-~]; `whisper.DEFAULT_MODEL="large-v3-turbo"`, reads wav via `wave` + numpy (faster-whisper 1.2.1 vs PyAV 19).
+- F1: `whisper.load(model, device="cuda")` creates on one device only; the CUDA→CPU fallback lives in `whisper.transcribe` and covers model creation and decoding. cli checks `no such file` before `engines.select`.

@@ -17,4 +17,4 @@
 
 | Начат | Папка | Статус | Итог |
 |---|---|---|---|
-| 2026-11-23 | `2026-11-23-vidscribe-cross-platform--wip` | в работе | — |
+| 2026-11-23 | `2026-11-23-vidscribe-cross-platform` | сдан | vidscribe работает на Windows и Mac: движки MLX, ElevenLabs Scribe и локальный Whisper, установщики и один скилл |

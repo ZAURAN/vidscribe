@@ -14,6 +14,9 @@ Why the shipped defaults are what they are. An ADR is written when a default cha
 | [0008](0008-full-sheets.md) | Every overview sheet is full: 16 tiles per sheet, one sheet per 160 s of picture (1 to 6) (superseded by 0009) |
 | [0009](0009-drop-picture-commands.md) | Drop sheets, `-v`, `--at` and `--scan`; print the video path for `ffmpeg` |
 | [0010](0010-cross-platform-engines.md) | One Python program for Mac and Windows with three engines (mlx, scribe, whisper); the cloud only by explicit choice (softens 0001) |
+| [0011](0011-python-package-uv-tool.md) | A Python package installed with `uv tool`; yt-dlp is a dependency of the package, not a system tool |
+| [0012](0012-scribe-no-redirects.md) | Scribe requests follow no redirects, and the key is checked before anything is sent |
+| [0013](0013-whisper-reads-wav-directly.md) | The whisper engine reads the wav with `wave`, bypassing PyAV, until faster-whisper supports PyAV 19 |
 
 ## Considered, not built
 
