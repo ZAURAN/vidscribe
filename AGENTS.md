@@ -7,6 +7,10 @@ Lets AI agents "watch" videos on macOS and Windows: speech becomes a timestamped
 
 | Команда | Что делает |
 |---------|------------|
+| `./install.sh` | Установка на Mac (Apple Silicon): brew, mlx-audio, пакет через uv, скилл |
+| `powershell -ExecutionPolicy Bypass -File install.ps1` | Установка на Windows: ffmpeg и uv через winget, пакет через uv, скилл; `-Local` добавляет движок whisper |
+| `python -m vidscribe <файл или ссылка>` | Запуск из checkout без установки (в корне репозитория; на Windows `python`, не `python3`) |
+| `python -m unittest discover -s tests -v` | Проверка: все тесты; тесты, которым нужен ffmpeg, без него пропускаются |
 
 ## Как здесь работает Autopilot
 
