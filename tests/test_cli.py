@@ -89,6 +89,15 @@ class CliTest(Base):
         self.assertEqual(code, 1)
         self.assertIn("no such file: missing.mp4", err)
 
+    def test_no_such_file_before_engine_choice(self):
+        """A typo in the path is reported even when no engine is set up."""
+        with mock.patch.object(media, "require_tools"), mock.patch("platform.system", return_value="Linux"), \
+                mock.patch.dict(sys.modules, {"faster_whisper": None}):
+            code, _, err = self.run_cli("missing.mp4")
+        self.assertEqual(code, 1)
+        self.assertIn("no such file: missing.mp4", err)
+        self.assertNotIn("engine", err)
+
     def test_missing_ffmpeg_names_the_install_command(self):
         with mock.patch("shutil.which", return_value=None):
             code, _, err = self.run_cli("clip.mp4")
@@ -176,6 +185,24 @@ class CliMediaTest(Base):
         code, _, err = self.run_cli(str(self.copy("talk.mp4")), "-e", "whisper")
         self.assertEqual(code, 0, err)
         self.assertIn("WARNING: last cue 5s < duration 40s; transcript ends early", err.splitlines())
+
+    def test_downloaded_video_moves_and_ends_early_warns(self):
+        self.fake_engine("whisper", srt_until(5))
+        root = self.tmp / "root"
+
+        def download(url, dest, want_video):
+            self.assertTrue(want_video)
+            return self.copy("talk.mp4", dest / "abc123.mp4")  # yt-dlp writes into the run's temp folder
+
+        with mock.patch.object(media, "download", side_effect=download), mock.patch.object(media, "ROOT", root):
+            code, _, err = self.run_cli("https://x.com/i/status/1", "-e", "whisper")
+        self.assertEqual(code, 0, err)
+        lines = err.splitlines()
+        kept = root / "videos" / "abc123.mp4"
+        self.assertIn(f"video: {kept}", lines)
+        self.assertTrue(kept.is_file())
+        self.assertIn("WARNING: last cue 5s < duration 40s; transcript ends early", lines)
+        self.assertEqual(lines[-1], f"transcript: {self.outdir / 'abc123.txt'}")
 
     def test_key_selects_scribe_and_is_never_printed(self):
         self.fake_engine("scribe", srt_until(38))

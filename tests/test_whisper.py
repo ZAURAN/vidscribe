@@ -25,16 +25,23 @@ class FakeModel:
     """Stands in for faster_whisper.WhisperModel; records what it was given."""
     events = []
     fail_cuda = False
+    fail_cuda_decode = False  # the model loads on CUDA, but decoding needs a DLL that is missing
 
     def __init__(self, model, device, compute_type):
         FakeModel.events.append(("init", model, device, compute_type))
+        self.device = device
         if device == "cuda" and FakeModel.fail_cuda:
             raise RuntimeError("CUDA driver version is insufficient")
 
     def transcribe(self, audio, **kw):
         FakeModel.events.append(("transcribe", audio, kw))
         segs = [Segment(start=0.0, end=1.5, text=" Hello world."), Segment(start=2.0, end=3.25, text=" Bye.")]
-        return iter(segs), types.SimpleNamespace(language="en")
+
+        def lazy():  # faster-whisper decodes while the segments are iterated
+            if self.device == "cuda" and FakeModel.fail_cuda_decode:
+                raise RuntimeError("Library cublas64_12.dll is not found or cannot be loaded")
+            yield from segs
+        return lazy(), types.SimpleNamespace(language="en")
 
 
 def fake_extract(src, dst):
@@ -50,7 +57,7 @@ def fake_extract(src, dst):
 @unittest.skipUnless(importlib.util.find_spec("numpy"), "numpy (a faster-whisper dependency) is not installed")
 class WhisperTest(unittest.TestCase):
     def setUp(self):
-        FakeModel.events, FakeModel.fail_cuda = [], False
+        FakeModel.events, FakeModel.fail_cuda, FakeModel.fail_cuda_decode = [], False, False
         fake = types.ModuleType("faster_whisper")
         fake.WhisperModel = FakeModel
         for p in (mock.patch.dict(sys.modules, {"faster_whisper": fake}),
@@ -112,6 +119,33 @@ class WhisperTest(unittest.TestCase):
         self.assertEqual(inits, [("init", "large-v3-turbo", "cuda", "float16"),
                                  ("init", "large-v3-turbo", "cpu", "int8")])
         self.assertIn("warning: CUDA unavailable (CUDA driver version is insufficient), using CPU", self.err)
+
+    def test_cuda_failure_while_decoding_retries_on_cpu(self):
+        FakeModel.fail_cuda_decode = True
+        self.assertEqual(self.run_engine("txt"), "Hello world.\nBye.\n")
+        inits = [e for e in FakeModel.events if e[0] == "init"]
+        self.assertEqual(inits, [("init", "large-v3-turbo", "cuda", "float16"),
+                                 ("init", "large-v3-turbo", "cpu", "int8")])
+        self.assertIn("warning: CUDA unavailable (Library cublas64_12.dll is not found or cannot be loaded), "
+                      "using CPU", self.err)
+
+    def not_installed(self, system):
+        err = io.StringIO()
+        with mock.patch.dict(sys.modules, {"faster_whisper": None}), \
+                mock.patch("platform.system", return_value=system), mock.patch.object(whisper, "_dll_dirs", [None]), \
+                contextlib.redirect_stderr(err), self.assertRaises(SystemExit) as cm:
+            whisper.transcribe(self.dir / "in.mp4", self.dir, self.dir / "clip", "txt", Options())
+        self.assertEqual(cm.exception.code, 1)
+        self.assertTrue(err.getvalue().startswith("vidscribe: "), err.getvalue())
+        self.assertIn("faster-whisper", err.getvalue())
+        media.extract_audio.assert_not_called()  # fails before any ffmpeg work
+        return err.getvalue()
+
+    def test_not_installed_windows_hint(self):
+        self.assertIn("install.ps1 -Local", self.not_installed("Windows"))
+
+    def test_not_installed_hint(self):
+        self.assertIn('uv tool install --force --python 3.12 "<vidscribe repo>[local]"', self.not_installed("Linux"))
 
     def test_windows_adds_nvidia_dll_folders_before_import(self):
         site = self.dir / "site-packages"

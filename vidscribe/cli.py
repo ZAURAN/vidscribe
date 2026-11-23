@@ -66,6 +66,10 @@ def main(argv: list[str] | None = None) -> int:
             [str(Path.home() / ".local/bin"), "/opt/homebrew/bin", os.environ.get("PATH", "")])
     media.require_tools()
     media.prune()
+    is_url = re.match(r"https?://", args.src)
+    if not is_url and not Path(args.src).is_file():  # a typo beats "no engine is set up"
+        err(f"no such file: {args.src}")
+        return 1
     name = engines.select(args.e)
     err(f"engine: {name}" + (" (audio is uploaded to ElevenLabs)" if name == "scribe" else ""))
     engine = engines.get(name)
@@ -78,13 +82,7 @@ def main(argv: list[str] | None = None) -> int:
 
     with tempfile.TemporaryDirectory(prefix="vidscribe-", ignore_cleanup_errors=True) as t:
         tmp = Path(t)
-        if re.match(r"https?://", args.src):
-            src = media.download(args.src, tmp, want_video)
-        else:
-            src = Path(args.src)
-            if not src.is_file():
-                err(f"no such file: {args.src}")
-                return 1
+        src = media.download(args.src, tmp, want_video) if is_url else Path(args.src)
         out = outdir / src.stem
         srt = Path(f"{out}.srt")
         audio = media.has_audio(src)
@@ -104,7 +102,8 @@ def main(argv: list[str] | None = None) -> int:
 
         if keep_video:
             subs.srt_to_txt(srt, Path(f"{out}.txt"))
-            err(f"video: {media.keep_video(src, tmp)}")
+            src = media.keep_video(src, tmp)  # a download moves out of tmp; probe it at its new path
+            err(f"video: {src}")
 
         # truncation check: models have silently stopped early on long media before
         if audio and srt.is_file():

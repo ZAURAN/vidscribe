@@ -1,6 +1,7 @@
 import contextlib
 import email
 import email.policy
+import http.client
 import http.server
 import io
 import json
@@ -103,6 +104,16 @@ class RequestTest(unittest.TestCase):
 
     def test_network_error(self):
         self.assertIn("cannot reach ElevenLabs: ", self.fail(urllib.error.URLError("getaddrinfo failed")))
+
+    def test_response_cut_off(self):
+        r = mock.MagicMock()
+        r.__enter__.return_value.read.side_effect = http.client.IncompleteRead(b"{\"wor", 900)
+        self.assertIn("vidscribe: cannot reach ElevenLabs: ", self.fail([r]))
+
+    def test_200_that_is_not_json(self):
+        r = mock.MagicMock()
+        r.__enter__.return_value.read.return_value = b"<html>gateway</html>"
+        self.assertIn("vidscribe: ElevenLabs API error 200: invalid response", self.fail([r]))
 
     def test_bad_key_rejected_before_sending_and_not_printed(self):
         for bad in ("sk_abc\r\nX-Evil: 1secretpart", "sk_abc secretpart", "sk_abc’secretpart"):

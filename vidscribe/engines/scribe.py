@@ -1,4 +1,5 @@
 """ElevenLabs Scribe: cloud speech-to-text with speaker labels and audio events (stdlib only)."""
+import http.client
 import json
 import os
 import platform
@@ -88,11 +89,18 @@ def request(audio: Path, key: str, opts) -> dict:
                                  headers={"xi-api-key": key, "Content-Type": ctype})
     try:
         with urllib.request.build_opener(_NoRedirect).open(req, timeout=TIMEOUT) as r:
-            return json.loads(r.read())
+            raw = r.read()
     except urllib.error.HTTPError as e:
         _fail(f"vidscribe: ElevenLabs API error {e.code}: {_error_message(e)}", key)
-    except (urllib.error.URLError, OSError) as e:
+    except (urllib.error.URLError, OSError, http.client.HTTPException) as e:  # incl. a body cut off mid-read
         _fail(f"vidscribe: cannot reach ElevenLabs: {getattr(e, 'reason', e)}", key)
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        data = None
+    if not isinstance(data, dict):  # e.g. a proxy's HTML page
+        _fail("vidscribe: ElevenLabs API error 200: invalid response", key)
+    return data
 
 
 def to_cues(words: list[dict]) -> list[subs.Cue]:

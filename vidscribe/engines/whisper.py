@@ -32,17 +32,29 @@ def available() -> bool:
     return True
 
 
-def load(model: str):
-    """CUDA float16, else CPU int8 with a warning."""
+def _whisper_model():
+    """faster_whisper.WhisperModel; exits 1 with an install hint when faster-whisper is missing."""
     _add_cuda_dlls()
-    from faster_whisper import WhisperModel
     try:
-        m = WhisperModel(model, device="cuda", compute_type="float16")
-        print(f"whisper: {model} on CUDA (float16)", file=sys.stderr)
-        return m
-    except Exception as e:  # no GPU, no driver, missing DLLs, or no CUDA build (macOS)
-        print(f"warning: CUDA unavailable ({e}), using CPU", file=sys.stderr)
-    return WhisperModel(model, device="cpu", compute_type="int8")
+        from faster_whisper import WhisperModel
+    except ImportError as e:
+        if platform.system() == "Windows":
+            how = "install.ps1 -Local"
+        else:
+            how = 'uv tool install --force --python 3.12 "<vidscribe repo>[local]"'
+        print(f"vidscribe: the whisper engine needs faster-whisper ({e}); install it: {how}", file=sys.stderr)
+        sys.exit(1)
+    return WhisperModel
+
+
+def load(model: str, device: str = "cuda"):
+    """CUDA float16 or CPU int8; a CUDA failure raises (transcribe falls back to CPU)."""
+    WhisperModel = _whisper_model()
+    if device == "cpu":
+        return WhisperModel(model, device="cpu", compute_type="int8")
+    m = WhisperModel(model, device="cuda", compute_type="float16")
+    print(f"whisper: {model} on CUDA (float16)", file=sys.stderr)
+    return m
 
 
 def _samples(wav: Path):
@@ -55,11 +67,22 @@ def _samples(wav: Path):
 
 
 def transcribe(src: Path, tmp: Path, out_base: Path, fmt: str, opts) -> None:
-    wav = media.extract_audio(src, tmp / "in16k.wav")
-    model = load(opts.model or DEFAULT_MODEL)
-    # vad_filter skips silence, where whisper tends to invent text
-    segments, info = model.transcribe(_samples(wav), language=opts.lang, hotwords=opts.context, vad_filter=True)
-    cues = [subs.Cue(s.start, s.end, s.text.strip()) for s in segments if s.text.strip()]
+    _whisper_model()  # an install hint before any ffmpeg work
+    name = opts.model or DEFAULT_MODEL
+    samples = _samples(media.extract_audio(src, tmp / "in16k.wav"))
+
+    def recognize(model):
+        # vad_filter skips silence, where whisper tends to invent text
+        segments, info = model.transcribe(samples, language=opts.lang, hotwords=opts.context, vad_filter=True)
+        return [subs.Cue(s.start, s.end, s.text.strip()) for s in segments if s.text.strip()], info
+
+    try:
+        cues, info = recognize(load(name))
+    # no GPU, no driver, missing DLLs, no CUDA build (macOS); CUDA can also load and then fail
+    # at the first decode, when ctranslate2 loads cuBLAS/cuDNN lazily
+    except Exception as e:
+        print(f"warning: CUDA unavailable ({e}), using CPU", file=sys.stderr)
+        cues, info = recognize(load(name, "cpu"))
     if fmt == "json":
         data = {"language": info.language, "segments": [c._asdict() for c in cues]}
         Path(f"{out_base}.json").write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n",
