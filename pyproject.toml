@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vidscribe"
+version = "0.2.0"
+description = "Speech-to-text for videos, so an agent can read a video and look at its frames"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = ["yt-dlp"]
+
+[project.optional-dependencies]
+local = ["faster-whisper>=1.1"]
+cuda = [
+    "nvidia-cublas-cu12; sys_platform != 'darwin'",
+    "nvidia-cudnn-cu12>=9,<10; sys_platform != 'darwin'",
+]
+
+[project.scripts]
+vidscribe = "vidscribe.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vidscribe"]
