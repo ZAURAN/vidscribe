@@ -38,6 +38,8 @@ Create an API key in your ElevenLabs account and set it yourself; the installers
 
 ## Install
 
+Run the installers from the folder of this repository, not from a clone of the upstream project: `cd <this repository>`, then `./install.sh` or `.\install.ps1`. This version is based on [SamuelZ12/vidscribe](https://github.com/SamuelZ12/vidscribe) (upstream, MIT).
+
 **macOS (Apple Silicon).** Needs [Homebrew](https://brew.sh). `./install.sh` runs `brew install uv ffmpeg`, `uv tool install --force mlx-audio --prerelease=allow`, then `uv tool install --force --python 3.12 <repo>`, and copies `skill/` into `~/.claude/skills/vidscribe`. It removes an old `~/.local/bin/vidscribe` symlink that would shadow the new command.
 
 **Windows (PowerShell 5.1 or 7).** `.\install.ps1` installs ffmpeg (`winget install Gyan.FFmpeg`) and uv (`winget install astral-sh.uv`) only if they are missing, runs `uv tool install --force --python 3.12 <repo>`, runs `uv tool update-shell`, and copies `skill/` into `~/.claude/skills/vidscribe`. `.\install.ps1 -Local` installs `<repo>[local,cuda]`: faster-whisper plus the CUDA 12 libraries (pip packages `nvidia-cublas-cu12` and `nvidia-cudnn-cu12`); an NVIDIA driver is still required for the GPU. If winget is missing, install ffmpeg and uv by hand.

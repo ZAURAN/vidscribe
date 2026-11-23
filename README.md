@@ -14,16 +14,17 @@ Tables, method, and limits: [docs/benchmark.md](docs/benchmark.md). Every run us
 
 **macOS (Apple Silicon)** needs [Homebrew](https://brew.sh). The default model (~2.5 GB) downloads on first run.
 
+Run the installer from the folder of this repository (the checkout you are reading):
+
 ```sh
-git clone https://github.com/SamuelZ12/vidscribe.git
-cd vidscribe && ./install.sh
+cd <this repository>
+./install.sh
 ```
 
 **Windows** (PowerShell 5.1 or 7) installs ffmpeg and uv with winget if they are missing:
 
 ```powershell
-git clone https://github.com/SamuelZ12/vidscribe.git
-cd vidscribe
+cd <this repository>
 .\install.ps1          # cloud engine (ElevenLabs Scribe)
 .\install.ps1 -Local   # also the local whisper engine (NVIDIA GPU or CPU)
 ```
@@ -63,11 +64,7 @@ txt transcripts print to stdout; the transcript and video paths go to stderr. On
 
 ## Agent skill
 
-```sh
-npx skills add SamuelZ12/vidscribe
-```
-
-The installers already put it in `~/.claude/skills/vidscribe`. Otherwise, with Node.js 22.20+, run the command above; without Node, copy `skill/` into your agent's skills folder.
+The installers copy `skill/` into `~/.claude/skills/vidscribe`. For another agent, copy `skill/` into its skills folder by hand. Do not use `npx skills add SamuelZ12/vidscribe`: it installs the original skill, which is macOS-only.
 
 ## Limits
 
@@ -79,4 +76,4 @@ Design decisions: [docs/decisions/](docs/decisions/).
 
 ## License
 
-MIT. The models, ffmpeg and yt-dlp come under their own licenses: [docs/usage.md](docs/usage.md#licenses).
+MIT. Based on [SamuelZ12/vidscribe](https://github.com/SamuelZ12/vidscribe) (upstream, MIT). The models, ffmpeg and yt-dlp come under their own licenses: [docs/usage.md](docs/usage.md#licenses).

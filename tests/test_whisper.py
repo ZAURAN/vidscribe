@@ -165,7 +165,9 @@ class WhisperTest(unittest.TestCase):
                 mock.patch.object(os, "add_dll_directory", side_effect=add_dll_directory, create=True):
             self.run_engine("txt")
             path = os.environ["PATH"]
-        self.assertEqual(sorted(added), sorted(bins))
+        # real nvidia packages on sys.path (a .[local,cuda] install) add their own folders too
+        self.assertLessEqual(set(bins), set(added))
+        self.assertNotIn(site / "nvidia" / "nobin" / "bin", added)
         self.assertEqual(FakeModel.events[0][0], "dll")  # before the model is created
         for b in bins:
             self.assertIn(str(b), path)
